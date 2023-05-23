@@ -1,0 +1,4 @@
+_target_: diffcsp.pl_modules.diff_utils.SigmaScheduler
+timesteps: ${model.timesteps}
+sigma_begin: 0.005
+sigma_end: 0.5

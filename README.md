@@ -36,14 +36,14 @@ One sample
 
 ```
 python scripts/evaluate.py --model_path <model_path>
-python scripts/compute_metrics --root_path <model_path> --tasks struct --gt_file data/<dataset>/test.csv 
+python scripts/compute_metrics --root_path <model_path> --tasks csp --gt_file data/<dataset>/test.csv 
 ```
 
 Multiple samples
 
 ```
 python scripts/evaluate.py --model_path <model_path> --num_evals 20
-python scripts/compute_metrics --root_path <model_path> --tasks struct --gt_file data/<dataset>/test.csv --multi_eval
+python scripts/compute_metrics --root_path <model_path> --tasks csp --gt_file data/<dataset>/test.csv --multi_eval
 ```
 
 #### Ab initio generation

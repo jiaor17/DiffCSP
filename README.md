@@ -1,6 +1,6 @@
 # DiffCSP
 
-Implementation codes for submission 3458 (Crystal Structure Prediction by Joint Equivariant Diffusion on Lattices and Fractional Coordinates).
+Implementation codes for submission 2730 (Crystal Structure Prediction by Joint Equivariant Diffusion).
 
 ### Dependencies
 

@@ -1,6 +1,6 @@
 # DiffCSP
 
-Implementation codes for submission Crystal Structure Prediction by Joint Equivariant Diffusion.
+Implementation codes for Crystal Structure Prediction by Joint Equivariant Diffusion.
 
 ### Dependencies
 

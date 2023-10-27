@@ -2,9 +2,9 @@
 
 Implementation codes for Crystal Structure Prediction by Joint Equivariant Diffusion (DiffCSP). 
 
-[**[Paper]**](https://arxiv.org/abs/2309.04475)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/jiaor17/DiffCSP/blob/main/LICENSE)   [**[Paper]**](https://arxiv.org/abs/2309.04475)
 
-![Overview](fig/overview.pdf "Overview")
+![Overview](fig/overview.png "Overview")
 
 ![Demo](fig/demo.gif "Demo")
 

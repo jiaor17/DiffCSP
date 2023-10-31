@@ -137,6 +137,7 @@ class CSPNet(nn.Module):
         self.lattice_out = nn.Linear(hidden_dim, 9, bias = False)
         self.cutoff = cutoff
         self.max_neighbors = max_neighbors
+        self.pred_type = pred_type
         self.ln = ln
         self.edge_style = edge_style
         if self.ln:

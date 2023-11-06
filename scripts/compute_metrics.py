@@ -26,7 +26,7 @@ sys.path.append('.')
 
 from eval_utils import (
     smact_validity, structure_validity, CompScaler, get_fp_pdist,
-    load_config, load_data, get_crystals_list, prop_model_eval, compute_cov, compute_cov_real)
+    load_config, load_data, get_crystals_list, prop_model_eval, compute_cov)
 
 CrystalNNFP = CrystalNNFingerprint.from_preset("ops")
 CompFP = ElementProperty.from_preset('magpie')
@@ -52,6 +52,9 @@ class Crystal(object):
         self.lengths = crys_array_dict['lengths']
         self.angles = crys_array_dict['angles']
         self.dict = crys_array_dict
+        if len(self.atom_types.shape) > 1:
+            self.dict['atom_types'] = (np.argmax(self.atom_types, axis=-1) + 1)
+            self.atom_types = (np.argmax(self.atom_types, axis=-1) + 1)
 
         self.get_structure()
         self.get_composition()
@@ -232,6 +235,13 @@ class GenEval(object):
         wdist_density = wasserstein_distance(pred_densities, gt_densities)
         return {'wdist_density': wdist_density}
 
+
+    def get_num_elem_wdist(self):
+        pred_nelems = [len(set(c.structure.species))
+                       for c in self.valid_samples]
+        gt_nelems = [len(set(c.structure.species)) for c in self.gt_crys]
+        wdist_num_elems = wasserstein_distance(pred_nelems, gt_nelems)
+        return {'wdist_num_elems': wdist_num_elems}
 
     def get_prop_wdist(self):
         if self.eval_model_name is not None:

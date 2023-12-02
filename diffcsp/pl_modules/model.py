@@ -30,6 +30,8 @@ class BaseModule(pl.LightningModule):
         super().__init__()
         # populate self.hparams with args and kwargs automagically!
         self.save_hyperparameters()
+        if hasattr(self.hparams, "model"):
+            self._hparams = self.hparams.model
 
     def configure_optimizers(self):
         opt = hydra.utils.instantiate(

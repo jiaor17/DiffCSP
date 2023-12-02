@@ -67,9 +67,18 @@ class CrystDataModule(pl.LightningDataModule):
                 train_dataset.cached_data,
                 key=train_dataset.prop)
         else:
-            self.lattice_scaler = torch.load(
-                Path(scaler_path) / 'lattice_scaler.pt')
-            self.scaler = torch.load(Path(scaler_path) / 'prop_scaler.pt')
+            try:
+                self.lattice_scaler = torch.load(
+                    Path(scaler_path) / 'lattice_scaler.pt')
+                self.scaler = torch.load(Path(scaler_path) / 'prop_scaler.pt')
+            except:
+                train_dataset = hydra.utils.instantiate(self.datasets.train)
+                self.lattice_scaler = get_scaler_from_data_list(
+                    train_dataset.cached_data,
+                    key='scaled_lattice')
+                self.scaler = get_scaler_from_data_list(
+                    train_dataset.cached_data,
+                    key=train_dataset.prop)
 
     def setup(self, stage: Optional[str] = None):
         """

@@ -24,8 +24,8 @@ import pdb
 import os
 
 train_dist = {
-    'perov' : [0, 0, 0, 0, 0, 1],
-    'carbon' : [0.0,
+    'perov_5' : [0, 0, 0, 0, 0, 1],
+    'carbon_24' : [0.0,
                 0.0,
                 0.0,
                 0.0,
@@ -50,7 +50,7 @@ train_dist = {
                 0.007059596125430964,
                 0.0,
                 0.006074536200952225],
-    'mp' : [0.0,
+    'mp_20' : [0.0,
             0.0021742334905660377,
             0.021079009433962265,
             0.019826061320754717,
@@ -71,6 +71,12 @@ train_dist = {
             0.053176591981132074,
             0.010576356132075472,
             0.08995430424528301]
+}
+
+recommand_step_lr = {
+    "perov_5": 1e-6,
+    "carbon_24": 1e-5,
+    "mp_20": 5e-6
 }
 
 def diffusion(loader, model, step_lr):
@@ -107,7 +113,7 @@ class SampleDataset(Dataset):
         self.total_num = total_num
         self.distribution = train_dist[dataset]
         self.num_atoms = np.random.choice(len(self.distribution), total_num, p = self.distribution)
-        self.is_carbon = dataset == 'carbon'
+        self.is_carbon = dataset == 'carbon_24'
 
     def __len__(self) -> int:
         return self.total_num
@@ -138,8 +144,10 @@ def main(args):
     test_set = SampleDataset(args.dataset, args.batch_size * args.num_batches_to_samples)
     test_loader = DataLoader(test_set, batch_size = args.batch_size)
 
+    step_lr = args.step_lr if args.step_lr >= 0 else recommand_step_lr[args.dataset]
+
     start_time = time.time()
-    (frac_coords, atom_types, lattices, lengths, angles, num_atoms) = diffusion(test_loader, model, args.step_lr)
+    (frac_coords, atom_types, lattices, lengths, angles, num_atoms) = diffusion(test_loader, model, step_lr)
 
     if args.label == '':
         gen_out_name = 'eval_gen.pt'

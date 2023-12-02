@@ -238,7 +238,7 @@ class CSPNet(nn.Module):
             lis = [torch.ones(n,n, device=num_atoms.device) for n in num_atoms]
             fc_graph = torch.block_diag(*lis)
             fc_edges, _ = dense_to_sparse(fc_graph)
-            return fc_edges, (frac_coords[fc_edges[1]] - frac_coords[fc_edges[0]])
+            return fc_edges, (frac_coords[fc_edges[1]] - frac_coords[fc_edges[0]]) % 1.
         elif self.edge_style == 'knn':
             lattice_nodes = lattices[node2graph]
             cart_coords = torch.einsum('bi,bij->bj', frac_coords, lattice_nodes)

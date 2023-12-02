@@ -27,7 +27,7 @@ CompScaler = StandardScaler(
     stds=np.array(CompScalerStds),
     replace_nan_token=0.)
 
-import pdb
+import os
 
 
 def lattices_to_params_shape(lattices):
@@ -82,13 +82,22 @@ def load_model(model_path, load_data=False, testing=True):
         )
         ckpts = list(model_path.glob('*.ckpt'))
         if len(ckpts) > 0:
-            ckpt_epochs = np.array(
-                [int(ckpt.parts[-1].split('-')[0].split('=')[1]) for ckpt in ckpts if 'last' not in ckpt.parts[-1]])
-            ckpt = str(ckpts[ckpt_epochs.argsort()[-1]])
-        model = model.load_from_checkpoint(ckpt, strict=False)
-        model.lattice_scaler = torch.load(model_path / 'lattice_scaler.pt')
-        model.scaler = torch.load(model_path / 'prop_scaler.pt')
-
+            ckpt = None
+            for ck in ckpts:
+                if 'last' in ck.parts[-1]:
+                    ckpt = str(ck)
+            if ckpt is None:
+                ckpt_epochs = np.array(
+                    [int(ckpt.parts[-1].split('-')[0].split('=')[1]) for ckpt in ckpts if 'last' not in ckpt.parts[-1]])
+                ckpt = str(ckpts[ckpt_epochs.argsort()[-1]])
+        hparams = os.path.join(model_path, "hparams.yaml")
+        # model = model.load_from_checkpoint(ckpt, strict=False)
+        model = model.load_from_checkpoint(ckpt, hparams_file=hparams, strict=False)
+        try:
+            model.lattice_scaler = torch.load(model_path / 'lattice_scaler.pt')
+            model.scaler = torch.load(model_path / 'prop_scaler.pt')
+        except:
+            pass
 
         if load_data:
             datamodule = hydra.utils.instantiate(
@@ -188,7 +197,7 @@ def structure_validity(crystal, cutoff=0.5):
     # Pad diagonal with a large number
     dist_mat = dist_mat + np.diag(
         np.ones(dist_mat.shape[0]) * (cutoff + 10.))
-    if dist_mat.min() < cutoff or crystal.volume < 0.1 or max(crystal.lattice.abc) > 40:
+    if dist_mat.min() < cutoff or crystal.volume < 0.1:
         return False
     else:
         return True

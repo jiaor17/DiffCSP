@@ -40,7 +40,7 @@ For the Ab Initio Generation task
 python diffcsp/run.py data=<dataset> model=diffusion_w_type expname=<expname>
 ```
 
-The ``<dataset>`` tag can be selected from perov_5, mp_20, mpts_52 and carbon_24.
+The ``<dataset>`` tag can be selected from perov_5, mp_20, mpts_52 and carbon_24, and the ``<expname>`` tag can be an arbitrary name to identify each experiment. Pre-trained checkpoints are provided [here](https://drive.google.com/drive/folders/11WOc9lTZN4hkIY7SKLCIrbsTMGy9TsoW?usp=sharing).
 
 ### Evaluation
 
@@ -49,22 +49,22 @@ The ``<dataset>`` tag can be selected from perov_5, mp_20, mpts_52 and carbon_24
 One sample 
 
 ```
-python scripts/evaluate.py --model_path <model_path>
-python scripts/compute_metrics --root_path <model_path> --tasks csp --gt_file data/<dataset>/test.csv 
+python scripts/evaluate.py --model_path <model_path> --dataset <dataset>
+python scripts/compute_metrics.py --root_path <model_path> --tasks csp --gt_file data/<dataset>/test.csv 
 ```
 
 Multiple samples
 
 ```
-python scripts/evaluate.py --model_path <model_path> --num_evals 20
-python scripts/compute_metrics --root_path <model_path> --tasks csp --gt_file data/<dataset>/test.csv --multi_eval
+python scripts/evaluate.py --model_path <model_path> --dataset <dataset> --num_evals 20
+python scripts/compute_metrics.py --root_path <model_path> --tasks csp --gt_file data/<dataset>/test.csv --multi_eval
 ```
 
 #### Ab initio generation
 
 ```
 python scripts/generation.py --model_path <model_path> --dataset <dataset>
-python scripts/compute_metrics --root_path <model_path> --tasks gen --gt_file data/<dataset>/test.csv
+python scripts/compute_metrics.py --root_path <model_path> --tasks gen --gt_file data/<dataset>/test.csv
 ```
 
 

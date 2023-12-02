@@ -32,6 +32,8 @@ class BaseModule(pl.LightningModule):
         super().__init__()
         # populate self.hparams with args and kwargs automagically!
         self.save_hyperparameters()
+        if hasattr(self.hparams, "model"):
+            self._hparams = self.hparams.model
 
     def configure_optimizers(self):
         opt = hydra.utils.instantiate(
@@ -74,30 +76,6 @@ class CSPDiffusion(BaseModule):
         self.time_embedding = SinusoidalTimeEmbeddings(self.time_dim)
         self.keep_lattice = self.hparams.cost_lattice < 1e-5
         self.keep_coords = self.hparams.cost_coord < 1e-5
-
-
-    def reparameterize(self, mu, logvar):
-        """
-        Reparameterization trick to sample from N(mu, var) from
-        N(0,1).
-        :param mu: (Tensor) Mean of the latent Gaussian [B x D]
-        :param logvar: (Tensor) Standard deviation of the latent Gaussian [B x D]
-        :return: (Tensor) [B x D]
-        """
-        std = torch.exp(0.5 * logvar)
-        eps = torch.randn_like(std)
-        return eps * std + mu
-
-    def encode(self, batch):
-        """
-        encode crystal structures to latents.
-        """
-        hidden = self.encoder(batch)
-        mu = self.fc_mu(hidden)
-        log_var = self.fc_var(hidden)
-        z = self.reparameterize(mu, log_var)
-        return mu, log_var, z
-
 
     def forward(self, batch):
 
@@ -206,6 +184,7 @@ class CSPDiffusion(BaseModule):
             rand_x = torch.randn_like(x_T) if t > 1 else torch.zeros_like(x_T)
 
             step_size = step_lr * (sigma_x / self.sigma_scheduler.sigma_begin) ** 2
+            # step_size = step_lr / (sigma_norm * (self.sigma_scheduler.sigma_begin) ** 2)
             std_x = torch.sqrt(2 * step_size)
 
             pred_l, pred_x = self.decoder(time_emb, batch.atom_types, x_t, l_t, batch.num_atoms, batch.batch)

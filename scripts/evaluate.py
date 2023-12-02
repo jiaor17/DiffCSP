@@ -19,6 +19,13 @@ import copy
 
 import numpy as np
 
+recommand_step_lr = {
+    "perov_5": 5e-7,
+    "carbon_24": 5e-7,
+    "mp_20": 1e-5,
+    "mpts_52": 1e-5
+}
+
 
 def diffusion(loader, model, num_evals, step_lr = 1e-5):
 
@@ -78,10 +85,12 @@ def main(args):
 
     print('Evaluate the diffusion model.')
 
+    step_lr = args.step_lr if args.step_lr >= 0 else recommand_step_lr[args.dataset]
+
 
     start_time = time.time()
     (frac_coords, atom_types, lattices, lengths, angles, num_atoms, input_data_batch) = diffusion(
-        test_loader, model, args.num_evals, args.step_lr)
+        test_loader, model, args.num_evals, step_lr)
 
     if args.label == '':
         diff_out_name = 'eval_diff.pt'
@@ -103,6 +112,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--model_path', required=True)
+    parser.add_argument('--dataset', required=True)
     parser.add_argument('--step_lr', default=1e-5, type=float)
     parser.add_argument('--num_evals', default=1, type=int)
     parser.add_argument('--label', default='')

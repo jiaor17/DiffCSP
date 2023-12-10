@@ -29,6 +29,26 @@ CompScaler = StandardScaler(
 
 import os
 
+recommand_step_lr = {
+    'csp':{
+        "perov_5": 5e-7,
+        "carbon_24": 5e-6,
+        "mp_20": 1e-5,
+        "mpts_52": 1e-5
+    },
+    'csp_multi':{
+        "perov_5": 5e-7,
+        "carbon_24": 5e-7,
+        "mp_20": 1e-5,
+        "mpts_52": 1e-5
+    },
+    'gen':{
+        "perov_5": 1e-6,
+        "carbon_24": 1e-5,
+        "mp_20": 5e-6
+    },
+}
+
 
 def lattices_to_params_shape(lattices):
 
@@ -91,7 +111,6 @@ def load_model(model_path, load_data=False, testing=True):
                     [int(ckpt.parts[-1].split('-')[0].split('=')[1]) for ckpt in ckpts if 'last' not in ckpt.parts[-1]])
                 ckpt = str(ckpts[ckpt_epochs.argsort()[-1]])
         hparams = os.path.join(model_path, "hparams.yaml")
-        # model = model.load_from_checkpoint(ckpt, strict=False)
         model = model.load_from_checkpoint(ckpt, hparams_file=hparams, strict=False)
         try:
             model.lattice_scaler = torch.load(model_path / 'lattice_scaler.pt')

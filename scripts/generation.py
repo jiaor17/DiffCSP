@@ -8,7 +8,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from torch_geometric.data import Data, Batch, DataLoader
 from torch.utils.data import Dataset
-from eval_utils import load_model, lattices_to_params_shape, get_crystals_list
+from eval_utils import load_model, lattices_to_params_shape, get_crystals_list, recommand_step_lr
 
 from pymatgen.core.structure import Structure
 from pymatgen.core.lattice import Lattice
@@ -73,11 +73,6 @@ train_dist = {
             0.08995430424528301]
 }
 
-recommand_step_lr = {
-    "perov_5": 1e-6,
-    "carbon_24": 1e-5,
-    "mp_20": 5e-6
-}
 
 def diffusion(loader, model, step_lr):
 
@@ -144,7 +139,9 @@ def main(args):
     test_set = SampleDataset(args.dataset, args.batch_size * args.num_batches_to_samples)
     test_loader = DataLoader(test_set, batch_size = args.batch_size)
 
-    step_lr = args.step_lr if args.step_lr >= 0 else recommand_step_lr[args.dataset]
+    step_lr = args.step_lr if args.step_lr >= 0 else recommand_step_lr['gen'][args.dataset]
+
+    print(step_lr)
 
     start_time = time.time()
     (frac_coords, atom_types, lattices, lengths, angles, num_atoms) = diffusion(test_loader, model, step_lr)
@@ -169,7 +166,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--model_path', required=True)
     parser.add_argument('--dataset', required=True)
-    parser.add_argument('--step_lr', default=1e-5, type=float)
+    parser.add_argument('--step_lr', default=-1, type=float)
     parser.add_argument('--num_batches_to_samples', default=20, type=int)
     parser.add_argument('--batch_size', default=500, type=int)
     parser.add_argument('--label', default='')

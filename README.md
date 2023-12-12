@@ -93,4 +93,5 @@ Please consider citing our work if you find it helpful:
 ### Contact
 
 If you have any questions, feel free to reach us at:
-Rui Jiao: [jiaor21@mails.tsinghua.edu.cn](jiaor21@mails.tsinghua.edu.cn)
+
+Rui Jiao: [jiaor21@mails.tsinghua.edu.cn](mailto:jiaor21@mails.tsinghua.edu.cn)

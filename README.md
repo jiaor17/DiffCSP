@@ -89,3 +89,8 @@ Please consider citing our work if you find it helpful:
   year={2023}
 }
 ```
+
+### Contact
+
+If you have any questions, feel free to reach us at:
+Rui Jiao: [jiaor21@mails.tsinghua.edu.cn](jiaor21@mails.tsinghua.edu.cn)

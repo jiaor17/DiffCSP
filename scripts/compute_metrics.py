@@ -266,7 +266,7 @@ class GenEval(object):
         metrics = {}
         metrics.update(self.get_validity())
         metrics.update(self.get_density_wdist())
-        # metrics.update(self.get_prop_wdist())
+        metrics.update(self.get_prop_wdist())
         metrics.update(self.get_num_elem_wdist())
         metrics.update(self.get_coverage())
         return metrics

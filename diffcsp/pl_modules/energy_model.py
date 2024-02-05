@@ -296,9 +296,9 @@ class CSPEnergy(BaseModule):
 
                 pred_x = pred_x * torch.sqrt(sigma_norm)
 
-                x_t_minus_1 = x_t_minus_05 - step_size * pred_x - step_size * aug * grad_x + std_x * rand_x 
+                x_t_minus_1 = x_t_minus_05 - step_size * pred_x - (std_x ** 2) * aug * grad_x + std_x * rand_x 
 
-                l_t_minus_1 = c0 * (l_t_minus_05 - c1 * pred_l) - c2 * aug * grad_l + sigmas * rand_l 
+                l_t_minus_1 = c0 * (l_t_minus_05 - c1 * pred_l) - (sigmas ** 2) * aug * grad_l + sigmas * rand_l 
 
                 t_t_minus_1 = t_T
 

@@ -77,7 +77,6 @@ class CSPDiffusion(BaseModule):
         self.time_embedding = SinusoidalTimeEmbeddings(self.time_dim)
         self.keep_lattice = self.hparams.cost_lattice < 1e-5
         self.keep_coords = self.hparams.cost_coord < 1e-5
-        self.h_weight = 1.0 if not hasattr(self.hparams, 'h_weight') else self.hparams.h_weight
 
 
 
@@ -106,7 +105,7 @@ class CSPDiffusion(BaseModule):
         sigmas_norm_per_atom = sigmas_norm.repeat_interleave(batch.num_atoms)[:, None]
         input_frac_coords = (frac_coords + sigmas_per_atom * rand_x) % 1.
 
-        gt_atom_types_onehot = F.one_hot(batch.atom_types - 1, num_classes=MAX_ATOMIC_NUM).float() * self.h_weight
+        gt_atom_types_onehot = F.one_hot(batch.atom_types - 1, num_classes=MAX_ATOMIC_NUM).float()
 
         rand_t = torch.randn_like(gt_atom_types_onehot)
 

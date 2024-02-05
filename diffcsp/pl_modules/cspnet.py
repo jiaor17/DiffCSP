@@ -24,7 +24,7 @@ class SinusoidsEmbedding(nn.Module):
         emb = x.unsqueeze(-1) * self.frequencies[None, None, :].to(x.device)
         emb = emb.reshape(-1, self.n_frequencies * self.n_space)
         emb = torch.cat((emb.sin(), emb.cos()), dim=-1)
-        return emb.detach()
+        return emb
 
 
 class CSPLayer(nn.Module):
@@ -111,7 +111,8 @@ class CSPNet(nn.Module):
         ln = False,
         ip = True,
         smooth = False,
-        pred_type = False
+        pred_type = False,
+        pred_scalar = False
     ):
         super(CSPNet, self).__init__()
 
@@ -144,6 +145,9 @@ class CSPNet(nn.Module):
             self.final_layer_norm = nn.LayerNorm(hidden_dim)
         if self.pred_type:
             self.type_out = nn.Linear(hidden_dim, MAX_ATOMIC_NUM)
+        self.pred_scalar = pred_scalar
+        if self.pred_scalar:
+            self.scalar_out = nn.Linear(hidden_dim, 1)
 
     def select_symmetric_edges(self, tensor, mask, reorder_idx, inverse_neg):
         # Mask out counter-edges
@@ -278,6 +282,10 @@ class CSPNet(nn.Module):
         coord_out = self.coord_out(node_features)
 
         graph_features = scatter(node_features, node2graph, dim = 0, reduce = 'mean')
+
+        if self.pred_scalar:
+            return self.scalar_out(graph_features)
+
         lattice_out = self.lattice_out(graph_features)
         lattice_out = lattice_out.view(-1, 3, 3)
         if self.ip:

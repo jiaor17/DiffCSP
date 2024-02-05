@@ -271,6 +271,43 @@ class GenEval(object):
         metrics.update(self.get_coverage())
         return metrics
 
+class OptEval(object):
+
+    def __init__(self, crys, num_opt=100, eval_model_name=None):
+        """
+        crys is a list of length (<step_opt> * <num_opt>),
+        where <num_opt> is the number of different initialization for optimizing crystals,
+        and <step_opt> is the number of saved crystals for each intialzation.
+        default to minimize the property.
+        """
+        step_opt = int(len(crys) / num_opt)
+        self.crys = crys
+        self.step_opt = step_opt
+        self.num_opt = num_opt
+        self.eval_model_name = eval_model_name
+
+    def get_success_rate(self):
+        valid_indices = np.array([c.valid for c in self.crys])
+        valid_indices = valid_indices.reshape(self.step_opt, self.num_opt)
+        valid_x, valid_y = valid_indices.nonzero()
+        props = np.ones([self.step_opt, self.num_opt]) * np.inf
+        valid_crys = [c for c in self.crys if c.valid]
+        if len(valid_crys) == 0:
+            sr_5, sr_10, sr_15 = 0, 0, 0
+        else:
+            pred_props = prop_model_eval(self.eval_model_name, [
+                                         c.dict for c in valid_crys])
+            percentiles = Percentiles[self.eval_model_name]
+            props[valid_x, valid_y] = pred_props
+            best_props = props.min(axis=0)
+            sr_5 = (best_props <= percentiles[0]).mean()
+            sr_10 = (best_props <= percentiles[1]).mean()
+            sr_15 = (best_props <= percentiles[2]).mean()
+        return {'SR5': sr_5, 'SR10': sr_10, 'SR15': sr_15}
+
+    def get_metrics(self):
+        return self.get_success_rate()
+
 
 def get_file_paths(root_path, task, label='', suffix='pt'):
     if args.label == '':
@@ -342,7 +379,16 @@ def main(args):
     cfg = load_config(args.root_path)
     eval_model_name = cfg.data.eval_model_name
 
-    if 'gen' in args.tasks:
+    if 'opt' in args.tasks:
+        opt_file_path = get_file_paths(args.root_path, 'opt', args.label)
+        crys_array_list, _ = get_crystal_array_list(opt_file_path)
+        opt_crys = p_map(lambda x: Crystal(x), crys_array_list)
+
+        opt_evaluator = OptEval(opt_crys, eval_model_name=eval_model_name)
+        opt_metrics = opt_evaluator.get_metrics()
+        all_metrics.update(opt_metrics)
+
+    elif 'gen' in args.tasks:
 
         gen_file_path = get_file_paths(args.root_path, 'gen', args.label)
         recon_file_path = get_file_paths(args.root_path, 'recon', args.label)
@@ -381,17 +427,14 @@ def main(args):
                 print(f"Processing batch {i}")
                 pred_crys.append(p_map(lambda x: Crystal(x), crys_array_list[i]))   
 
+        if args.multi_eval:
+            rec_evaluator = RecEvalBatch(pred_crys, gt_crys)
+        else:
+            rec_evaluator = RecEval(pred_crys, gt_crys)
 
-        if 'csp' in args.tasks: 
+        recon_metrics = rec_evaluator.get_metrics()
 
-            if args.multi_eval:
-                rec_evaluator = RecEvalBatch(pred_crys, gt_crys)
-            else:
-                rec_evaluator = RecEval(pred_crys, gt_crys)
-
-            recon_metrics = rec_evaluator.get_metrics()
-
-            all_metrics.update(recon_metrics)
+        all_metrics.update(recon_metrics)
 
    
 
@@ -424,7 +467,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--root_path', required=True)
     parser.add_argument('--label', default='')
-    parser.add_argument('--tasks', nargs='+', default=['csp', 'gen'])
+    parser.add_argument('--tasks', nargs='+', default=['csp'])
     parser.add_argument('--gt_file',default='')
     parser.add_argument('--multi_eval',action='store_true')
     args = parser.parse_args()

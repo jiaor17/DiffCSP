@@ -74,6 +74,19 @@ python scripts/compute_metrics.py --root_path <model_path> --tasks gen --gt_file
 python scripts/sample.py --model_path <model_path> --save_path <save_path> --formula <formula> --num_evals <num_evals>
 ```
 
+#### Property Optimization
+
+```
+# train a time-dependent energy prediction model 
+python diffcsp/run.py data=<dataset> model=energy expname=<expname> data.datamodule.batch_size.test=100
+
+# Optimization
+python scripts/optimization.py --model_path <energy_model_path> --uncond_path <model_path>
+
+# Evaluation
+python scripts/compute_metrics.py --root_path <energy_model_path> --tasks opt
+```
+
 ### Acknowledgments
 
 The main framework of this codebase is build upon [CDVAE](https://github.com/txie-93/cdvae). For the datasets, Perov-5, Carbon-24 and MP-20 are from [CDVAE](https://github.com/txie-93/cdvae), and MPTS-52 is collected from its original [codebase](https://github.com/sparks-baird/mp-time-split).

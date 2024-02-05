@@ -163,3 +163,4 @@ tmp/
 singlerun/
 wandb/
 runs/
+clean/

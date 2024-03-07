@@ -15,7 +15,7 @@ python==3.8.13
 torch==1.9.0
 torch-geometric==1.7.2
 pytorch_lightning==1.3.8
-pymatgen==2022.9.21
+pymatgen==2023.8.10
 ```
 
 Rename the `.env.template` file into `.env` and specify the following variables.

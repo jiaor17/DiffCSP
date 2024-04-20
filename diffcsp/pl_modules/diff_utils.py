@@ -4,6 +4,8 @@ import torch.nn as nn
 import numpy as np
 import math
 
+import pdb
+
 def cosine_beta_schedule(timesteps, s=0.008):
     """
     cosine schedule as proposed in https://arxiv.org/abs/2102.09672
@@ -44,6 +46,43 @@ def sigma_norm(sigma, T=1.0, sn = 10000):
     x_sample = x_sample % T
     normal_ = d_log_p_wrapped_normal(x_sample, sigmas, T = T)
     return (normal_ ** 2).mean(dim = 0)
+
+
+def p_wrapped_multivariate_normal(x, sigma, N=10, T=1.0):
+    # x: [..., d]
+    dims = x.shape[-1]
+    coordinates = [torch.arange(-N, N+1)] * dims
+    meshgrid = torch.meshgrid(coordinates)
+    meshpoints = torch.cat([_.reshape(-1,1) for _ in meshgrid],dim=-1).to(x.device)
+    p_ = 0
+    for point in meshpoints:
+        p_ += torch.exp(-((x + T * point) ** 2).sum(dim=-1) / 2 / sigma[...,0] ** 2)
+    return p_
+
+def d_log_p_wrapped_multivariate_normal(x, sigma, N=5, T=1.0):
+    # x: [..., d]
+    dims = x.shape[-1]
+    coordinates = [torch.arange(-N, N+1)] * dims
+    meshgrid = torch.meshgrid(coordinates)
+    meshpoints = torch.cat([_.reshape(-1,1) for _ in meshgrid],dim=-1).to(x.device) # [(2N + 1) ^ d, d]
+    p_ = 0
+    for point in meshpoints:
+        p_ += (x + T * point) / sigma ** 2 * torch.exp(-((x + T * point) ** 2).sum(dim=-1, keepdim=True) / 2 / sigma ** 2)
+
+    return p_ / p_wrapped_multivariate_normal(x, sigma, N, T).unsqueeze(-1)
+
+def sigma_norm_multivariate(sigma, T=1.0, sn=10000, dims = 1):
+    sigmas = sigma[None, :, None].repeat(sn, 1, dims)
+    x_sample = sigmas * torch.randn_like(sigmas)
+    x_sample = x_sample % T
+    normal_ = d_log_p_wrapped_multivariate_normal(x_sample, sigmas, T = T)    
+    return (normal_ ** 2).sum(dim=-1).mean(dim=0)
+
+
+
+
+
+    
 
 
 
@@ -103,6 +142,30 @@ class SigmaScheduler(nn.Module):
         sigmas = torch.FloatTensor(np.exp(np.linspace(np.log(sigma_begin), np.log(sigma_end), timesteps)))
 
         sigmas_norm_ = sigma_norm(sigmas)
+
+        self.register_buffer('sigmas', torch.cat([torch.zeros([1]), sigmas], dim=0))
+        self.register_buffer('sigmas_norm', torch.cat([torch.ones([1]), sigmas_norm_], dim=0))
+
+    def uniform_sample_t(self, batch_size, device):
+        ts = np.random.choice(np.arange(1, self.timesteps+1), batch_size)
+        return torch.from_numpy(ts).to(device)
+
+class SigmaSchedulerMulti(nn.Module):
+
+    def __init__(
+        self,
+        timesteps,
+        sigma_begin = 0.01,
+        sigma_end = 1.0
+    ):
+        super(SigmaSchedulerMulti, self).__init__()
+        self.timesteps = timesteps
+        self.sigma_begin = sigma_begin
+        self.sigma_end = sigma_end
+        sigmas = torch.FloatTensor(np.exp(np.linspace(np.log(sigma_begin), np.log(sigma_end), timesteps)))
+
+        sigmas_norm_ = sigma_norm_multivariate(sigmas)
+
 
         self.register_buffer('sigmas', torch.cat([torch.zeros([1]), sigmas], dim=0))
         self.register_buffer('sigmas_norm', torch.cat([torch.ones([1]), sigmas_norm_], dim=0))

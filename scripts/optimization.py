@@ -79,23 +79,55 @@ train_dist = {
             0.08995430424528301]
 }
 
-def diffusion(loader, energy, uncond, step_lr, aug):
+def diffusion(loader, energy, uncond, step_lr, aug, test_samples, num_candidates):
 
-    frac_coords = []
-    num_atoms = []
-    atom_types = []
-    lattices = []
-    input_data_list = []
-    batch = next(iter(loader)).to(energy.device)
 
-    all_crystals = []
-    for i in range(1,11):
-        print(f'Optimize from T={i*100}')
-        outputs, _ = energy.sample(batch, uncond, step_lr = step_lr, diff_ratio = i/10, aug = aug)
-        all_crystals.append(outputs)
+    assert test_samples <= len(loader.dataset), f"Required sampling size is larger than the entire testing set ({len(loader.dataset)})!"
 
-    res = {k: torch.cat([d[k].detach().cpu() for d in all_crystals], dim=0).unsqueeze(0) for k in
+    assert num_candidates > 0
+
+    step_interval = 1000 // num_candidates
+
+    cur_samples = 0
+
+    all_crystals = [[] for _ in range(num_candidates)]
+
+    while True:
+
+        batch = next(iter(loader)).to(energy.device)
+
+        if cur_samples + batch.num_graphs >= test_samples:
+            used_samples = test_samples - cur_samples
+            cur_samples = test_samples
+        else:
+            used_samples = batch.num_graphs
+            cur_samples += batch.num_graphs
+
+        used_atoms = torch.sum(batch.num_atoms[:used_samples])
+
+        for i in range(1,num_candidates + 1):
+            print(f'Optimize from T={i*step_interval}')
+            outputs, _ = energy.sample(batch, uncond, step_lr = step_lr, diff_ratio = i/num_candidates, aug = aug)
+
+            outputs = {
+                'frac_coords': outputs['frac_coords'][:used_atoms],
+                'atom_types': outputs['atom_types'][:used_atoms],
+                'num_atoms': outputs['num_atoms'][:used_samples],
+                'lattices': outputs['lattices'][:used_samples],
+            }
+            
+            all_crystals[i-1].append(outputs)
+
+        if cur_samples == test_samples:
+            break
+
+    for i in range(num_candidates):
+        all_crystals[i] = {k: torch.cat([d[k].detach().cpu() for d in all_crystals[i]], dim=0) for k in
+            ['frac_coords', 'atom_types', 'num_atoms', 'lattices']}
+
+    res = {k: torch.cat([d[k] for d in all_crystals], dim=0).unsqueeze(0) for k in
         ['frac_coords', 'atom_types', 'num_atoms', 'lattices']}
+
 
     lengths, angles = lattices_to_params_shape(res['lattices'])
     
@@ -104,7 +136,7 @@ def diffusion(loader, energy, uncond, step_lr, aug):
 
 
 def main(args):
-    # load_data if do reconstruction.
+    
     model_path = Path(args.model_path)
     model, loader, cfg = load_model(
         model_path, load_data=True)
@@ -121,7 +153,7 @@ def main(args):
     print('Evaluate the diffusion model.')
 
     start_time = time.time()
-    (frac_coords, atom_types, lengths, angles, num_atoms) = diffusion(loader, model, uncond, args.step_lr, args.aug)
+    (frac_coords, atom_types, lengths, angles, num_atoms) = diffusion(loader, model, uncond, args.step_lr, args.aug, args.test_samples, args.num_candidates)
 
     if args.label == '':
         gen_out_name = 'eval_opt.pt'
@@ -145,6 +177,8 @@ if __name__ == '__main__':
     parser.add_argument('--uncond_path', required=True)
     parser.add_argument('--step_lr', default=1e-5, type=float)
     parser.add_argument('--aug', default=50, type=float)
+    parser.add_argument('--test_samples', default=100, type=int)
+    parser.add_argument('--num_candidates', default=10, type=int)
     parser.add_argument('--label', default='')
     args = parser.parse_args()
 

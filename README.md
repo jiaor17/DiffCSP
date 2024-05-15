@@ -87,7 +87,7 @@ python scripts/optimization.py --model_path <energy_model_path> --uncond_path <m
 python scripts/compute_metrics.py --root_path <energy_model_path> --tasks opt
 
 # (Optional) Multiple Properties Optimization
-python multi_optimization.py --uncond_path <uncond_model> -cond_paths <cond_model1> <cond_model2> ... <cond_modelN> --augs aug1 aug2 ... augN
+python scripts/multi_optimization.py --uncond_path <uncond_model> -cond_paths <cond_model1> <cond_model2> ... <cond_modelN> --augs aug1 aug2 ... augN
 ```
 
 ### Acknowledgments

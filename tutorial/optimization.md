@@ -8,8 +8,8 @@ Prepare the raw data as
 |-- data
     |-- properties
 	    |-- <property>
-            |-- cif
-            |-- <raw_data>.csv
+            	|-- cif
+            	|-- <raw_data>.csv
 ```
 
 The csv file should at least contain the following 3 columns

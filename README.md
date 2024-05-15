@@ -76,19 +76,7 @@ python scripts/sample.py --model_path <model_path> --save_path <save_path> --for
 
 #### Property Optimization
 
-```
-# train a time-dependent energy prediction model 
-python diffcsp/run.py data=<dataset> model=energy expname=<expname> data.datamodule.batch_size.test=100
-
-# Optimization
-python scripts/optimization.py --model_path <energy_model_path> --uncond_path <model_path>
-
-# Evaluation
-python scripts/compute_metrics.py --root_path <energy_model_path> --tasks opt
-
-# (Optional) Multiple Properties Optimization
-python scripts/multi_optimization.py --uncond_path <uncond_model> -cond_paths <cond_model1> <cond_model2> ... <cond_modelN> --augs aug1 aug2 ... augN
-```
+Details are provided in `tutorial/optimization.md`.
 
 ### Acknowledgments
 

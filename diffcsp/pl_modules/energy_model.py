@@ -22,13 +22,12 @@ from diffcsp.common.utils import PROJECT_ROOT
 from diffcsp.common.data_utils import (
     EPSILON, cart_to_frac_coords, mard, lengths_angles_to_volume, lattice_params_to_matrix_torch,
     frac_to_cart_coords, min_distance_sqr_pbc)
-MAX_ATOMIC_NUM=100
 
 from diffcsp.pl_modules.diff_utils import d_log_p_wrapped_normal
-from scipy.optimize import linear_sum_assignment
 
 import pdb
 
+MAX_ATOMIC_NUM=100
 
 class BaseModule(pl.LightningModule):
     def __init__(self, *args, **kwargs) -> None:
@@ -37,7 +36,6 @@ class BaseModule(pl.LightningModule):
         self.save_hyperparameters()
         if hasattr(self.hparams, "model"):
             self._hparams = self.hparams.model
-
 
     def configure_optimizers(self):
         opt = hydra.utils.instantiate(
@@ -100,16 +98,48 @@ class CSPEnergy(BaseModule):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         
-        self.decoder = hydra.utils.instantiate(self.hparams.decoder, latent_dim = self.hparams.time_dim, pred_scalar = True, smooth = True)
+        self.decoder = hydra.utils.instantiate(self.hparams.decoder, latent_dim = self.hparams.time_dim, pred_scalar = True, smooth = True, target_dim = self.hparams.num_targets)
         self.beta_scheduler = hydra.utils.instantiate(self.hparams.beta_scheduler)
         self.sigma_scheduler = hydra.utils.instantiate(self.hparams.sigma_scheduler)
+        self.type_sigma_scheduler = hydra.utils.instantiate(self.hparams.sigma_scheduler, sigma_begin = self.hparams.type_sigma_begin, sigma_end = self.hparams.type_sigma_end)
         self.time_dim = self.hparams.time_dim
         self.time_embedding = SinusoidalTimeEmbeddings(self.time_dim)
+        self.task = self.hparams.task
+        self.opt_target = self.hparams.opt_target
 
         if not hasattr(self.hparams, 'update_type'):
             self.update_type = True
         else:
-            self.update_type = self.hparams.update_type      
+            self.update_type = self.hparams.update_type  
+
+    def get_loss(self, preds, labels):
+
+        if self.task == 'regression':
+            loss = F.huber_loss(preds, labels, reduction='none')
+        
+        elif self.task == 'classification':
+            loss = F.cross_entropy(preds, labels.reshape(-1), reduction='none')
+
+        return loss
+    
+    def get_target(self, preds):
+
+        if self.task == 'regression':
+            preds = preds * self.opt_target
+
+        elif self.task == 'classification':
+            preds = preds[self.opt_target] - torch.logsumexp(preds, dim=-1)
+
+        return -preds
+    
+    def nanmean(self, input_tensor):
+        mask = torch.isnan(input_tensor)
+        input_tensor = torch.where(mask, torch.zeros_like(input_tensor), input_tensor)
+        sum_tensor = torch.sum(input_tensor)
+        count_tensor = torch.sum(~mask).type(input_tensor.dtype)
+        nanmean_tensor = sum_tensor / count_tensor
+
+        return nanmean_tensor
 
 
     def forward(self, batch):
@@ -143,13 +173,18 @@ class CSPEnergy(BaseModule):
         rand_t = torch.randn_like(gt_atom_types_onehot)
 
         if self.update_type:
+
             atom_type_probs = (c0.repeat_interleave(batch.num_atoms)[:, None] * gt_atom_types_onehot + c1.repeat_interleave(batch.num_atoms)[:, None] * rand_t)
+
         else:
+
             atom_type_probs = gt_atom_types_onehot
             
             
         pred_e = self.decoder(time_emb, atom_type_probs, input_frac_coords, input_lattice, batch.num_atoms, batch.batch)
-        loss_energy = F.l1_loss(pred_e, batch.y)
+
+
+        loss_energy = self.get_loss(pred_e, batch.y)
 
 
         loss = loss_energy
@@ -177,13 +212,18 @@ class CSPEnergy(BaseModule):
             lattices = lattice_params_to_matrix_torch(batch.lengths, batch.angles)
             atom_types_onehot = F.one_hot(batch.atom_types - 1, num_classes=MAX_ATOMIC_NUM).float()
             frac_coords = batch.frac_coords
+
             rand_l, rand_x = torch.randn_like(lattices), torch.randn_like(frac_coords)
             rand_t = torch.randn_like(atom_types_onehot)
+
             alphas_cumprod = self.beta_scheduler.alphas_cumprod[time_start]
             beta = self.beta_scheduler.betas[time_start]
+
             c0 = torch.sqrt(alphas_cumprod)
             c1 = torch.sqrt(1. - alphas_cumprod)
+
             sigmas = self.sigma_scheduler.sigmas[time_start]
+
             l_T = c0 * lattices + c1 * rand_l
             x_T = (frac_coords + sigmas * rand_x) % 1.
             t_T = c0 * atom_types_onehot + c1 * rand_t if update_type else atom_types_onehot
@@ -238,18 +278,28 @@ class CSPEnergy(BaseModule):
             if update_type:
 
                 pred_l, pred_x, pred_t = uncod.decoder(time_emb, t_t, x_t, l_t, batch.num_atoms, batch.batch)
+
                 pred_x = pred_x * torch.sqrt(sigma_norm)
+
                 x_t_minus_05 = x_t - step_size * pred_x + std_x * rand_x
+
                 l_t_minus_05 = l_t
+
                 t_t_minus_05 = t_t
             
             else:
 
                 t_t_one = t_T.argmax(dim=-1).long() + 1
+
+
                 pred_l, pred_x = uncod.decoder(time_emb, t_t_one, x_t, l_t, batch.num_atoms, batch.batch)
+
                 pred_x = pred_x * torch.sqrt(sigma_norm)
+
                 x_t_minus_05 = x_t - step_size * pred_x + std_x * rand_x
+
                 l_t_minus_05 = l_t
+
                 t_t_minus_05 = t_T
 
 
@@ -275,7 +325,6 @@ class CSPEnergy(BaseModule):
 
                 pred_x = pred_x * torch.sqrt(sigma_norm)
 
-
                 x_t_minus_1 = x_t_minus_05 - step_size * pred_x - (std_x ** 2) * aug * grad_x + std_x * rand_x 
 
                 l_t_minus_1 = c0 * (l_t_minus_05 - c1 * pred_l) - (sigmas ** 2) * aug * grad_l + sigmas * rand_l 
@@ -291,14 +340,16 @@ class CSPEnergy(BaseModule):
                 with torch.enable_grad():
                     with RequiresGradContext(x_t_minus_05, l_t_minus_05, requires_grad=True):
                         pred_e = self.decoder(time_emb, t_T, x_t_minus_05, l_t_minus_05, batch.num_atoms, batch.batch)
+                        pred_e = self.get_target(pred_e)
                         grad_outputs = [torch.ones_like(pred_e)]
                         grad_x, grad_l = grad(pred_e, [x_t_minus_05, l_t_minus_05], grad_outputs = grad_outputs, allow_unused=True)
 
+
                 pred_x = pred_x * torch.sqrt(sigma_norm)
 
-                x_t_minus_1 = x_t_minus_05 - step_size * pred_x - (std_x ** 2) * aug * grad_x + std_x * rand_x 
+                x_t_minus_1 = x_t_minus_05 - step_size * pred_x - step_size * aug * grad_x + std_x * rand_x 
 
-                l_t_minus_1 = c0 * (l_t_minus_05 - c1 * pred_l) - (sigmas ** 2) * aug * grad_l + sigmas * rand_l 
+                l_t_minus_1 = c0 * (l_t_minus_05 - c1 * pred_l) - c2 * aug * grad_l + sigmas * rand_l 
 
                 t_t_minus_1 = t_T
 
@@ -320,67 +371,7 @@ class CSPEnergy(BaseModule):
         res = traj[0]
         res['atom_types'] = res['atom_types'].argmax(dim=-1) + 1
 
-        return traj[0], traj_stack
-
-    def multinomial_sample(self, t_t, pred_t, num_atoms, times):
-        
-        noised_atom_types = t_t
-        pred_atom_probs = F.softmax(pred_t, dim = -1)
-
-        alpha = self.beta_scheduler.alphas[times].repeat_interleave(num_atoms)
-        alpha_bar = self.beta_scheduler.alphas_cumprod[times - 1].repeat_interleave(num_atoms)
-
-        theta = (alpha[:, None] * noised_atom_types + (1 - alpha[:, None]) / MAX_ATOMIC_NUM) * (alpha_bar[:, None] * pred_atom_probs + (1 - alpha_bar[:, None]) / MAX_ATOMIC_NUM)
-
-        theta = theta / (theta.sum(dim=-1, keepdim=True) + 1e-8)
-
-        return theta
-
-
-
-    def type_loss(self, pred_atom_types, target_atom_types, noised_atom_types, batch, times):
-
-        pred_atom_probs = F.softmax(pred_atom_types, dim = -1)
-
-        atom_probs_0 = F.one_hot(target_atom_types - 1, num_classes=MAX_ATOMIC_NUM)
-
-        alpha = self.beta_scheduler.alphas[times].repeat_interleave(batch.num_atoms)
-        alpha_bar = self.beta_scheduler.alphas_cumprod[times - 1].repeat_interleave(batch.num_atoms)
-
-        theta = (alpha[:, None] * noised_atom_types + (1 - alpha[:, None]) / MAX_ATOMIC_NUM) * (alpha_bar[:, None] * atom_probs_0 + (1 - alpha_bar[:, None]) / MAX_ATOMIC_NUM)
-        theta_hat = (alpha[:, None] * noised_atom_types + (1 - alpha[:, None]) / MAX_ATOMIC_NUM) * (alpha_bar[:, None] * pred_atom_probs + (1 - alpha_bar[:, None]) / MAX_ATOMIC_NUM)
-
-        theta = theta / (theta.sum(dim=-1, keepdim=True) + 1e-8)
-        theta_hat = theta_hat / (theta_hat.sum(dim=-1, keepdim=True) + 1e-8)
-
-        theta_hat = torch.log(theta_hat + 1e-8)
-
-        kldiv = F.kl_div(
-            input=theta_hat, 
-            target=theta, 
-            reduction='none',
-            log_target=False
-        ).sum(dim=-1)
-
-        return kldiv.mean()
-
-    def lap(self, probs, types, num_atoms):
-        
-        types_1 = types - 1
-        atoms_end = torch.cumsum(num_atoms, dim=0)
-        atoms_begin = torch.zeros_like(num_atoms)
-        atoms_begin[1:] = atoms_end[:-1]
-        res_types = []
-        for st, ed in zip(atoms_begin, atoms_end):
-            types_crys = types_1[st:ed]
-            probs_crys = probs[st:ed]
-            probs_crys = probs_crys[:,types_crys]
-            probs_crys = F.softmax(probs_crys, dim=-1).detach().cpu().numpy()
-            assignment = linear_sum_assignment(-probs_crys)[1].astype(np.int32)
-            types_crys = types_crys[assignment] + 1
-            res_types.append(types_crys)
-        return torch.cat(res_types)
-
+        return res, traj_stack
 
 
     def training_step(self, batch: Any, batch_idx: int) -> torch.Tensor:
@@ -388,6 +379,8 @@ class CSPEnergy(BaseModule):
         output_dict = self(batch)
 
         loss = output_dict['loss']
+
+        loss = loss.mean()
 
 
         self.log_dict(
@@ -430,6 +423,8 @@ class CSPEnergy(BaseModule):
     def compute_stats(self, output_dict, prefix):
 
         loss = output_dict['loss']
+
+        loss = self.nanmean(loss)
 
         log_dict = {
             f'{prefix}_loss': loss,

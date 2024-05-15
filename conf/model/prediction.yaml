@@ -1,0 +1,9 @@
+_target_: diffcsp.pl_modules.predictor.CrystGNN_Supervise
+use_orientation: false
+hidden_dim: 128
+fc_num_layers: 4
+task: ${data.task}
+num_targets: ${data.num_targets}
+
+defaults:
+  - encoder: dimenet

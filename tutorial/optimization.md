@@ -18,7 +18,7 @@ The csv file should at least contain the following 3 columns
 material_id, cif, <prop>
 ```
 
-``<prop>`` can be arbitrary property types, like formation_energy_per_atom in mp_20.
+``<prop>`` can be arbitrary property types, like `formation_energy_per_atom` in mp_20.
 
 
 Split the raw data via the following script

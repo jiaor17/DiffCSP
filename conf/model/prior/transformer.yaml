@@ -1,0 +1,9 @@
+_target_: diffcsp.pl_modules.transformer.EncTransformer
+hidden_dim: 256
+ff_dim: 256
+head: 4
+num_layers: 4
+dropout: 0.0
+leaky_relu_slope: 0.01
+dense_output_nonlinearity: 'relu'
+

@@ -106,7 +106,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--model_path', required=True)
     parser.add_argument('--dataset', required=True)
-    parser.add_argument('--step_lr', default=-1, type=float)
+    parser.add_argument('--step_lr', default=1e-4, type=float)
     parser.add_argument('--num_evals', default=1, type=int)
     parser.add_argument('--label', default='')
     args = parser.parse_args()
